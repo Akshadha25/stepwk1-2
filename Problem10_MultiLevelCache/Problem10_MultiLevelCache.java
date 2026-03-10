@@ -1,56 +1,84 @@
-// Problem 10: Multi-Level Cache
 import java.util.*;
 
-public class Problem10_MultiLevelCache {
+class VideoData {
+    String videoId;
+    String content;
 
-    // Simulate a simple two-level cache: L1 (fast, small) and L2 (slower, bigger)
-    private Map<String, String> L1;
-    private Map<String, String> L2;
+    VideoData(String videoId, String content) {
+        this.videoId = videoId;
+        this.content = content;
+    }
+}
+
+public class Problem10_MultiLevelCache {
+    private LinkedHashMap<String, VideoData> L1; // memory cache
+    private HashMap<String, VideoData> L2; // SSD cache simulation
+    private HashMap<String, VideoData> L3; // DB
     private int L1Capacity;
+
+    private int L1Hits = 0, L2Hits = 0, L3Hits = 0;
 
     public Problem10_MultiLevelCache(int L1Capacity) {
         this.L1Capacity = L1Capacity;
-        L1 = new LinkedHashMap<>(L1Capacity, 0.75f, true); // access-order LRU
+        L1 = new LinkedHashMap<>(L1Capacity, 0.75f, true);
         L2 = new HashMap<>();
+        L3 = new HashMap<>();
     }
 
-    // Get value from cache
-    public String get(String key) {
-        if (L1.containsKey(key)) {
-            return L1.get(key); // L1 hit
+    public void addVideo(VideoData video) {
+        L3.put(video.videoId, video); // all videos in DB
+    }
+
+    public VideoData getVideo(String videoId) {
+        if (L1.containsKey(videoId)) {
+            L1Hits++;
+            return L1.get(videoId);
         }
-        if (L2.containsKey(key)) {
-            String value = L2.get(key);
-            putInL1(key, value); // promote to L1
-            return value;
+        if (L2.containsKey(videoId)) {
+            L2Hits++;
+            promoteToL1(videoId, L2.get(videoId));
+            return L2.get(videoId);
         }
-        return null; // cache miss
+        if (L3.containsKey(videoId)) {
+            L3Hits++;
+            VideoData data = L3.get(videoId);
+            L2.put(videoId, data);
+            promoteToL1(videoId, data);
+            return data;
+        }
+        return null; // not found
     }
 
-    // Put value in cache
-    public void put(String key, String value) {
-        putInL1(key, value);
-        L2.put(key, value); // always keep in L2
-    }
-
-    private void putInL1(String key, String value) {
+    private void promoteToL1(String key, VideoData data) {
         if (L1.size() >= L1Capacity) {
-            String eldestKey = L1.keySet().iterator().next();
-            L1.remove(eldestKey); // remove LRU
+            String eldest = L1.keySet().iterator().next();
+            L1.remove(eldest);
         }
-        L1.put(key, value);
+        L1.put(key, data);
     }
 
-    // For testing
+    public void printStats() {
+        int total = L1Hits + L2Hits + L3Hits;
+        System.out.println("\nCache Stats:");
+        System.out.println("L1 Hits: " + L1Hits);
+        System.out.println("L2 Hits: " + L2Hits);
+        System.out.println("L3 Hits: " + L3Hits);
+        System.out.println("Total Accesses: " + total);
+        System.out.println("L1 Hit Rate: " + ((double)L1Hits/total*100) + "%");
+    }
+
     public static void main(String[] args) {
         Problem10_MultiLevelCache cache = new Problem10_MultiLevelCache(2);
 
-        cache.put("A", "Apple");
-        cache.put("B", "Banana");
-        System.out.println("Get A: " + cache.get("A")); // L1 hit
-        cache.put("C", "Cherry"); // evict least recently used (B)
-        System.out.println("Get B: " + cache.get("B")); // L2 hit, promote to L1
-        System.out.println("Get C: " + cache.get("C")); // L1 hit
-        System.out.println("Get A: " + cache.get("A")); // L1 hit or L2 depending on eviction
+        cache.addVideo(new VideoData("v1","Video 1 content"));
+        cache.addVideo(new VideoData("v2","Video 2 content"));
+        cache.addVideo(new VideoData("v3","Video 3 content"));
+
+        System.out.println("Access v1: " + cache.getVideo("v1").content);
+        System.out.println("Access v2: " + cache.getVideo("v2").content);
+        System.out.println("Access v1: " + cache.getVideo("v1").content);
+        System.out.println("Access v3: " + cache.getVideo("v3").content);
+
+        cache.printStats();
     }
 }

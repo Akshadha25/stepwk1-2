@@ -1,31 +1,71 @@
-// Problem 9: Two-Sum Transactions
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
+import java.time.*;
+
+class Transaction {
+    int id;
+    double amount;
+    String merchant;
+    LocalDateTime timestamp;
+
+    Transaction(int id, double amount, String merchant, LocalDateTime timestamp) {
+        this.id = id;
+        this.amount = amount;
+        this.merchant = merchant;
+        this.timestamp = timestamp;
+    }
+}
 
 public class Problem9_TwoSumTransactions {
-
-    // Find indices of two transactions that sum to the target
-    public static int[] twoSum(int[] transactions, int target) {
-        Map<Integer, Integer> map = new HashMap<>();
-        for (int i = 0; i < transactions.length; i++) {
-            int complement = target - transactions[i];
+    // Classic two-sum
+    public static List<int[]> findTwoSum(List<Transaction> transactions, double target) {
+        Map<Double, Transaction> map = new HashMap<>();
+        List<int[]> results = new ArrayList<>();
+        for (Transaction t : transactions) {
+            double complement = target - t.amount;
             if (map.containsKey(complement)) {
-                return new int[]{map.get(complement), i};
+                results.add(new int[]{map.get(complement).id, t.id});
             }
-            map.put(transactions[i], i);
+            map.put(t.amount, t);
         }
-        return new int[]{-1, -1}; // No solution found
+        return results;
+    }
+
+    // Duplicate detection (same amount + merchant, different IDs)
+    public static List<List<Integer>> detectDuplicates(List<Transaction> transactions) {
+        Map<String, List<Integer>> map = new HashMap<>();
+        for (Transaction t : transactions) {
+            String key = t.amount + "_" + t.merchant;
+            map.putIfAbsent(key, new ArrayList<>());
+            map.get(key).add(t.id);
+        }
+
+        List<List<Integer>> duplicates = new ArrayList<>();
+        for (List<Integer> ids : map.values()) {
+            if (ids.size() > 1) duplicates.add(ids);
+        }
+        return duplicates;
     }
 
     public static void main(String[] args) {
-        int[] transactions = {20, 35, 15, 40, 50};
-        int target = 55;
+        List<Transaction> transactions = Arrays.asList(
+                new Transaction(1, 500, "StoreA", LocalDateTime.of(2026,3,10,10,0)),
+                new Transaction(2, 300, "StoreB", LocalDateTime.of(2026,3,10,10,15)),
+                new Transaction(3, 200, "StoreC", LocalDateTime.of(2026,3,10,10,30)),
+                new Transaction(4, 500, "StoreA", LocalDateTime.of(2026,3,10,11,0)),
+                new Transaction(5, 150, "StoreB", LocalDateTime.of(2026,3,10,11,15))
+        );
 
-        int[] result = twoSum(transactions, target);
-        if (result[0] != -1) {
-            System.out.println("Transactions at indices " + result[0] + " and " + result[1] + " sum to " + target);
-        } else {
-            System.out.println("No two transactions sum to " + target);
+        double target = 500;
+        List<int[]> pairs = findTwoSum(transactions, target);
+        System.out.println("Two-Sum pairs for target " + target + ":");
+        for (int[] pair : pairs) {
+            System.out.println(Arrays.toString(pair));
+        }
+
+        List<List<Integer>> duplicates = detectDuplicates(transactions);
+        System.out.println("\nDetected duplicates:");
+        for (List<Integer> dup : duplicates) {
+            System.out.println(dup);
         }
     }
 }

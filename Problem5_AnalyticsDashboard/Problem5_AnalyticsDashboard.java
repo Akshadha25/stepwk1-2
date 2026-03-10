@@ -1,45 +1,52 @@
-// Problem 5: Analytics Dashboard
 import java.util.*;
 
 public class Problem5_AnalyticsDashboard {
 
-    static class User {
-        String name;
-        int visits;
+    static class PageEvent {
+        String url, source;
+        String userId;
 
-        User(String name, int visits) {
-            this.name = name;
-            this.visits = visits;
+        PageEvent(String url, String userId, String source) {
+            this.url = url;
+            this.userId = userId;
+            this.source = source;
         }
     }
 
+    private static Map<String, Integer> pageViews = new HashMap<>();
+    private static Map<String, Set<String>> uniqueVisitors = new HashMap<>();
+    private static Map<String, Integer> trafficSource = new HashMap<>();
+
+    public static void processEvent(PageEvent event) {
+        pageViews.put(event.url, pageViews.getOrDefault(event.url, 0) + 1);
+        uniqueVisitors.putIfAbsent(event.url, new HashSet<>());
+        uniqueVisitors.get(event.url).add(event.userId);
+        trafficSource.put(event.source, trafficSource.getOrDefault(event.source, 0) + 1);
+    }
+
+    public static void printDashboard() {
+        System.out.println("--- Top Pages ---");
+        pageViews.entrySet().stream()
+                .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())
+                .limit(10)
+                .forEach(e -> System.out.println(e.getKey() + " - " + e.getValue() + " views (" + uniqueVisitors.get(e.getKey()).size() + " unique)"));
+
+        System.out.println("\n--- Traffic Sources ---");
+        int total = trafficSource.values().stream().mapToInt(i -> i).sum();
+        trafficSource.forEach((src, count) -> System.out.println(src + ": " + (count * 100 / total) + "%"));
+    }
+
     public static void main(String[] args) {
-        // Sample data
-        List<User> users = Arrays.asList(
-                new User("Alice", 5),
-                new User("Bob", 3),
-                new User("Charlie", 7),
-                new User("Diana", 2)
+        List<PageEvent> events = Arrays.asList(
+                new PageEvent("/article/news", "user1", "google"),
+                new PageEvent("/article/news", "user2", "facebook"),
+                new PageEvent("/sports/championship", "user3", "direct"),
+                new PageEvent("/article/news", "user1", "google"),
+                new PageEvent("/sports/championship", "user4", "google")
         );
 
-        // Total visits
-        int totalVisits = users.stream().mapToInt(u -> u.visits).sum();
-        System.out.println("Total Visits: " + totalVisits);
+        for(PageEvent e : events) processEvent(e);
 
-        // Most active user
-        User mostActive = users.stream().max(Comparator.comparingInt(u -> u.visits)).orElse(null);
-        if (mostActive != null) {
-            System.out.println("Most Active User: " + mostActive.name + " (" + mostActive.visits + " visits)");
-        }
-
-        // Average visits
-        double average = totalVisits / (double) users.size();
-        System.out.println("Average Visits: " + String.format("%.2f", average));
-
-        // Simple dashboard display
-        System.out.println("\n--- Dashboard ---");
-        for (User u : users) {
-            System.out.println(u.name + ": " + u.visits + " visits");
-        }
+        printDashboard();
     }
 }

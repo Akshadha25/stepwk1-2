@@ -1,34 +1,43 @@
-// Problem 4: Plagiarism Detector
 import java.util.*;
 
 public class Problem4_PlagiarismDetector {
 
-    // Method to calculate similarity percentage
-    public static double calculateSimilarity(String text1, String text2) {
-        Set<String> words1 = new HashSet<>(Arrays.asList(text1.toLowerCase().split("\\s+")));
-        Set<String> words2 = new HashSet<>(Arrays.asList(text2.toLowerCase().split("\\s+")));
+    private static int N_GRAM = 5; // 5-grams
+    private static Map<String, Set<String>> ngramMap = new HashMap<>();
 
-        Set<String> intersection = new HashSet<>(words1);
-        intersection.retainAll(words2);
+    public static void addDocument(String docId, String content) {
+        String[] words = content.toLowerCase().split("\\s+");
+        for (int i = 0; i <= words.length - N_GRAM; i++) {
+            String ngram = String.join(" ", Arrays.copyOfRange(words, i, i + N_GRAM));
+            ngramMap.putIfAbsent(ngram, new HashSet<>());
+            ngramMap.get(ngram).add(docId);
+        }
+    }
 
-        Set<String> union = new HashSet<>(words1);
-        union.addAll(words2);
-
-        return ((double) intersection.size() / union.size()) * 100;
+    public static Map<String, Integer> analyzeDocument(String docId, String content) {
+        Map<String, Integer> similarity = new HashMap<>();
+        String[] words = content.toLowerCase().split("\\s+");
+        for (int i = 0; i <= words.length - N_GRAM; i++) {
+            String ngram = String.join(" ", Arrays.copyOfRange(words, i, i + N_GRAM));
+            if (ngramMap.containsKey(ngram)) {
+                for (String otherDoc : ngramMap.get(ngram)) {
+                    if (!otherDoc.equals(docId)) {
+                        similarity.put(otherDoc, similarity.getOrDefault(otherDoc, 0) + 1);
+                    }
+                }
+            }
+        }
+        return similarity;
     }
 
     public static void main(String[] args) {
-        String doc1 = "This is a sample document to check plagiarism detection";
-        String doc2 = "This document is a sample to detect plagiarism";
+        addDocument("essay_089.txt", "This is a sample essay for testing plagiarism detection in documents");
+        addDocument("essay_092.txt", "Another example essay to check plagiarism detection using n-grams");
 
-        double similarity = calculateSimilarity(doc1, doc2);
-        System.out.println("Similarity: " + String.format("%.2f", similarity) + "%");
+        String newDocId = "essay_123.txt";
+        String newContent = "This is a sample document to check plagiarism detection";
 
-        // Example: Flag if similarity > 50%
-        if (similarity > 50) {
-            System.out.println("Plagiarism likely detected!");
-        } else {
-            System.out.println("Documents are sufficiently different.");
-        }
+        Map<String, Integer> similarity = analyzeDocument(newDocId, newContent);
+        similarity.forEach((doc, count) -> System.out.println("Matches with " + doc + ": " + count + " n-grams"));
     }
 }

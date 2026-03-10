@@ -1,5 +1,5 @@
-// Problem 3: DNS Cache with TTL
-import java.util.HashMap;
+import java.util.*;
+import java.util.concurrent.*;
 
 class DNSRecord {
     String ip;
@@ -16,35 +16,55 @@ class DNSRecord {
 }
 
 public class Problem3_DNSCache {
-    private HashMap<String, DNSRecord> cache = new HashMap<>();
+    private final int MAX_CACHE_SIZE = 1000;
+    private Map<String, DNSRecord> cache = new LinkedHashMap<>(16, 0.75f, true);
+    private int hits = 0, misses = 0;
 
-    // Add a DNS entry with TTL (milliseconds)
-    public void add(String domain, String ip, long ttlMillis) {
+    public synchronized void add(String domain, String ip, long ttlMillis) {
+        if (cache.size() >= MAX_CACHE_SIZE) {
+            Iterator<String> it = cache.keySet().iterator();
+            if (it.hasNext()) {
+                String oldest = it.next();
+                it.remove(); // LRU eviction
+            }
+        }
         cache.put(domain, new DNSRecord(ip, ttlMillis));
     }
 
-    // Lookup DNS entry
-    public String lookup(String domain) {
+    public synchronized String lookup(String domain) {
+        long start = System.nanoTime();
         DNSRecord record = cache.get(domain);
         if (record == null || record.isExpired()) {
-            cache.remove(domain); // remove expired entry
+            if (record != null) cache.remove(domain);
+            misses++;
+            long time = System.nanoTime() - start;
+            System.out.println("Cache MISS for " + domain + " (" + time/1e6 + " ms)");
             return null;
         }
+        hits++;
+        long time = System.nanoTime() - start;
+        System.out.println("Cache HIT for " + domain + " (" + time/1e6 + " ms)");
         return record.ip;
     }
 
-    public static void main(String[] args) {
+    public synchronized void printStats() {
+        int total = hits + misses;
+        double hitRate = total == 0 ? 0 : ((double) hits / total) * 100;
+        System.out.println("Cache Stats -> Hits: " + hits + ", Misses: " + misses + ", Hit Rate: " + String.format("%.2f", hitRate) + "%");
+    }
+
+    public static void main(String[] args) throws InterruptedException {
         Problem3_DNSCache dnsCache = new Problem3_DNSCache();
+        dnsCache.add("example.com", "93.184.216.34", 5000);
+        dnsCache.add("openai.com", "104.22.1.46", 10000);
 
-        // Add DNS entries
-        dnsCache.add("example.com", "93.184.216.34", 5000); // 5 sec TTL
-        dnsCache.add("openai.com", "104.22.1.46", 10000);   // 10 sec TTL
+        System.out.println(dnsCache.lookup("example.com"));
+        System.out.println(dnsCache.lookup("openai.com"));
 
-        System.out.println("Lookup example.com: " + dnsCache.lookup("example.com"));
-        System.out.println("Lookup openai.com: " + dnsCache.lookup("openai.com"));
+        Thread.sleep(6000);
+        System.out.println(dnsCache.lookup("example.com"));
+        System.out.println(dnsCache.lookup("openai.com"));
 
-        try { Thread.sleep(6000); } catch (InterruptedException e) {}
-        System.out.println("After 6 sec, lookup example.com: " + dnsCache.lookup("example.com"));
-        System.out.println("Lookup openai.com: " + dnsCache.lookup("openai.com"));
+        dnsCache.printStats();
     }
 }
