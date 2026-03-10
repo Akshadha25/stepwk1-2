@@ -1,80 +1,50 @@
- // Problem 3: DNS Cache with TTL
-import java.util.*;
-import java.util.concurrent.*;
+// Problem 3: DNS Cache with TTL
+import java.util.HashMap;
 
-class DNSEntry {
-    String domain;
-    String ipAddress;
-    long expiryTime; // in milliseconds
+class DNSRecord {
+    String ip;
+    long expiryTime;
 
-    public DNSEntry(String domain, String ipAddress, long ttlSeconds) {
-        this.domain = domain;
-        this.ipAddress = ipAddress;
-        this.expiryTime = System.currentTimeMillis() + ttlSeconds * 1000;
+    DNSRecord(String ip, long ttlMillis) {
+        this.ip = ip;
+        this.expiryTime = System.currentTimeMillis() + ttlMillis;
     }
 
-    public boolean isExpired() {
+    boolean isExpired() {
         return System.currentTimeMillis() > expiryTime;
     }
 }
 
 public class Problem3_DNSCache {
-    private final Map<String, DNSEntry> cache = new ConcurrentHashMap<>();
-    private int cacheHits = 0;
-    private int cacheMisses = 0;
+    private HashMap<String, DNSRecord> cache = new HashMap<>();
 
-    // Add entry to cache
-    public void add(String domain, String ipAddress, long ttlSeconds) {
-        cache.put(domain, new DNSEntry(domain, ipAddress, ttlSeconds));
+    // Add a DNS entry with TTL (milliseconds)
+    public void add(String domain, String ip, long ttlMillis) {
+        cache.put(domain, new DNSRecord(ip, ttlMillis));
     }
 
-    // Resolve domain
-    public String resolve(String domain) {
-        DNSEntry entry = cache.get(domain);
-
-        if (entry != null && !entry.isExpired()) {
-            cacheHits++;
-            return "Cache HIT ? " + entry.ipAddress;
-        } else {
-            cacheMisses++;
-            // Simulate upstream DNS query
-            String ipAddress = queryUpstreamDNS(domain);
-            add(domain, ipAddress, 300); // TTL 5 minutes
-            return "Cache MISS ? Query upstream ? " + ipAddress;
+    // Lookup DNS entry
+    public String lookup(String domain) {
+        DNSRecord record = cache.get(domain);
+        if (record == null || record.isExpired()) {
+            cache.remove(domain); // remove expired entry
+            return null;
         }
+        return record.ip;
     }
 
-    // Simulated upstream DNS
-    private String queryUpstreamDNS(String domain) {
-        Random rand = new Random();
-        return (rand.nextInt(256)) + "." + (rand.nextInt(256)) + "." + 
-               (rand.nextInt(256)) + "." + (rand.nextInt(256));
-    }
-
-    // Remove expired entries
-    public void cleanExpired() {
-        cache.entrySet().removeIf(entry -> entry.getValue().isExpired());
-    }
-
-    // Show stats
-    public void printStats() {
-        int total = cacheHits + cacheMisses;
-        double hitRate = total > 0 ? ((double) cacheHits / total) * 100 : 0;
-        System.out.println("Cache HITs: " + cacheHits);
-        System.out.println("Cache MISSes: " + cacheMisses);
-        System.out.println("Hit Rate: " + String.format("%.2f", hitRate) + "%");
-    }
-
-    public static void main(String[] args) throws InterruptedException {
+    public static void main(String[] args) {
         Problem3_DNSCache dnsCache = new Problem3_DNSCache();
 
-        System.out.println(dnsCache.resolve("google.com"));
-        System.out.println(dnsCache.resolve("yahoo.com"));
-        System.out.println(dnsCache.resolve("google.com")); // Should be a hit
+        // Add DNS entries
+        dnsCache.add("example.com", "93.184.216.34", 5000); // 5 sec TTL
+        dnsCache.add("openai.com", "104.22.1.46", 10000);   // 10 sec TTL
 
-        Thread.sleep(1000); // wait a bit
-        dnsCache.cleanExpired();
+        System.out.println("Lookup example.com: " + dnsCache.lookup("example.com"));
+        System.out.println("Lookup openai.com: " + dnsCache.lookup("openai.com"));
 
-        dnsCache.printStats();
+        try { Thread.sleep(6000); } catch (InterruptedException e) {}
+        System.out.println("After 6 sec, lookup example.com: " + dnsCache.lookup("example.com"));
+        System.out.println("Lookup openai.com: " + dnsCache.lookup("openai.com"));
     }
 }
